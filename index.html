@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Просмотр IP-Веб-камеры с Honor</title>
+    <!-- Подключение Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Стиль для рамки камеры */
+        .camera-frame {
+            border: 4px solid #4f46e5;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: 1rem;
+            overflow: hidden;
+            background-color: #1f2937;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4 sm:p-8 font-sans flex flex-col items-center">
+
+    <!-- Скрытый Canvas для захвата кадра (оставлен, но не используется) -->
+    <canvas id="captureCanvas" style="display: none;"></canvas>
+
+    <div class="w-full max-w-4xl space-y-8">
+        <header class="text-center">
+            <h1 class="text-4xl font-extrabold text-indigo-400">Сетевой Видеопоток с Honor</h1>
+            <p class="text-gray-400 mt-2">Используйте телефон как IP-камеру. Просмотр ведется прямо на Linux Mint.</p>
+        </header>
+
+        <!-- Блок инструкций для IP Webcam (Обновлен для USB) -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
+            <h2 class="text-xl font-semibold mb-3 text-indigo-300">Инструкции по настройке Honor:</h2>
+            <ol class="list-decimal list-inside space-y-2 text-gray-300 ml-4">
+                <li>Установите приложение **"IP Webcam"** (или аналогичное) из Google Play на Honor.</li>
+                <li>Запустите приложение и нажмите **"Start Server"** (Запустить сервер).</li>
+                <li>**Для подключения через Wi-Fi:** Введите IP-адрес, который покажет приложение, и порт (например, `192.168.1.10` и `8080`).</li>
+                <li>**Для подключения через USB (рекомендуется):**
+                    <ul class="list-disc list-inside ml-4 mt-1">
+                        <li>Включите режим USB-отладки на телефоне.</li>
+                        <li>Подключите телефон к Linux Mint по USB.</li>
+                        <li>В терминале выполните команду: `adb forward tcp:8080 tcp:8080`</li>
+                        <li>В поля ниже введите: **IP-адрес: `127.0.0.1` (localhost)** и **Порт: `8080`**.</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <!-- Управление потоком -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg space-y-4">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <input type="text" id="ipAddress" placeholder="IP-адрес (Wi-Fi: 192.168.x.x или USB: 127.0.0.1)"
+                       class="flex-1 p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white">
+                <input type="number" id="port" placeholder="Порт (например, 8080)" value="8080"
+                       class="w-full sm:w-32 p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white">
+            </div>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <button id="startButton" onclick="startStream()"
+                        class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 shadow-md shadow-indigo-500/50">
+                    Начать просмотр
+                </button>
+                <button id="stopButton" onclick="stopStream()" disabled
+                        class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 shadow-md shadow-red-500/50 opacity-50 cursor-not-allowed">
+                    Остановить просмотр
+                </button>
+            </div>
+            <div id="status" class="text-center text-sm mt-2 text-yellow-400">
+                Введите IP-адрес и нажмите "Начать просмотр".
+            </div>
+        </div>
+
+        <!-- Поле вывода камеры -->
+        <div class="camera-frame w-full aspect-video">
+            <img id="streamImage" alt="Видеопоток с Honor"
+                 class="w-full h-full object-contain"
+                 src="https://placehold.co/800x450/1f2937/a5b4fc?text=Ожидание+подключения"
+                 onerror="handleImageError()">
+        </div>
+        
+        <footer class="text-center text-gray-500 text-xs mt-6">
+            Для работы приложения требуется, чтобы на телефоне Honor был запущен сервер IP-веб-камеры.
+        </footer>
+    </div>
+
+    <!-- Firebase SDK Imports (Оставлены для совместимости с окружением) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        
+        // --- Firebase Initialization (Required for environment) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        if (firebaseConfig) {
+            const app = initializeApp(firebaseConfig);
+            window.auth = getAuth(app);
+            
+            // Authentication
+            async function authenticate() {
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(window.auth, initialAuthToken);
+                        console.log("Firebase signed in with custom token.");
+                    } else {
+                        await signInAnonymously(window.auth);
+                        console.log("Firebase signed in anonymously.");
+                    }
+                } catch (error) {
+                    console.error("Firebase Auth Error:", error);
+                }
+            }
+            authenticate();
+        }
+    </script>
+    
+    <script>
+        // --- Global State ---
+        let intervalId = null;
+
+        // --- DOM Elements ---
+        const streamImage = document.getElementById('streamImage');
+        const ipAddressInput = document.getElementById('ipAddress');
+        const portInput = document.getElementById('port');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const statusDiv = document.getElementById('status');
+        const placeholderUrl = "https://placehold.co/800x450/1f2937/a5b4fc?text=Ожидание+подключения";
+
+        /**
+         * Обновляет изображение с потока камеры.
+         */
+        function updateStream() {
+            const ip = ipAddressInput.value.trim();
+            const port = portInput.value.trim();
+
+            if (!ip) {
+                statusDiv.textContent = "Ошибка: IP-адрес не введен.";
+                stopStream();
+                return;
+            }
+            
+            // Большинство приложений IP Webcam предоставляют кадр по адресу /shot.jpg
+            const streamUrl = `http://${ip}:${port}/shot.jpg?r=${new Date().getTime()}`;
+            
+            // Обновляем src изображения
+            streamImage.src = streamUrl;
+            statusDiv.textContent = `Подключено: ${ip}:${port}. Обновление...`;
+            statusDiv.classList.remove('text-red-400', 'text-yellow-400');
+            statusDiv.classList.add('text-green-400');
+        }
+
+        /**
+         * Обрабатывает ошибки загрузки изображения (например, если телефон отключился).
+         */
+        function handleImageError() {
+            if (intervalId) {
+                // Если поток был запущен, значит, произошла ошибка
+                statusDiv.textContent = "Ошибка подключения или таймаут. Проверьте IP/Порт, Wi-Fi/USB-отладку.";
+                statusDiv.classList.remove('text-green-400', 'text-yellow-400');
+                statusDiv.classList.add('text-red-400');
+                // Пытаемся перезапустить через 3 секунды
+                setTimeout(updateStream, 3000); 
+            } else {
+                // Если поток не запущен, просто показываем плейсхолдер
+                streamImage.src = placeholderUrl;
+            }
+        }
+
+        /**
+         * Запускает интервал обновления потока.
+         */
+        function startStream() {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+
+            // Установка частоты обновления. 50 мс = 20 кадров/сек.
+            // Это хороший баланс между плавностью и стабильностью.
+            intervalId = setInterval(updateStream, 50); 
+
+            startButton.disabled = true;
+            startButton.classList.add('opacity-50', 'cursor-not-allowed');
+            stopButton.disabled = false;
+            stopButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            ipAddressInput.disabled = true;
+            portInput.disabled = true;
+            
+            // Первый вызов сразу после старта
+            updateStream();
+        }
+
+        /**
+         * Останавливает интервал обновления потока.
+         */
+        function stopStream() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+            startButton.disabled = false;
+            startButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            stopButton.disabled = true;
+            stopButton.classList.add('opacity-50', 'cursor-not-allowed');
+            ipAddressInput.disabled = false;
+            portInput.disabled = false;
+
+            statusDiv.textContent = "Просмотр остановлен.";
+            statusDiv.classList.remove('text-green-400', 'text-red-400');
+            statusDiv.classList.add('text-yellow-400');
+            streamImage.src = placeholderUrl;
+        }
+
+        // Устанавливаем обработчик ошибки для постоянного плейсхолдера
+        streamImage.onerror = handleImageError;
+
+    </script>
+</body>
+</html>
