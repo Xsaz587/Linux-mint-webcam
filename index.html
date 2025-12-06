@@ -54,19 +54,22 @@
                 <p>Этот проект представляет собой простое веб-приложение на чистом HTML, CSS (Tailwind) и JavaScript, предназначенное для просмотра видеопотока с Android-телефона (например, Honor), на котором запущено приложение IP-веб-камеры. Это идеальное решение для использования старого телефона в качестве домашней камеры наблюдения или монитора.</p>
             </div>
 
-            <!-- 1.2 Ключевые Функции -->
+            <!-- 1.2 Ключевые Функции (Обновлено) -->
             <div>
                 <h3 class="text-xl font-semibold text-indigo-300 mb-2">Ключевые Функции</h3>
                 <ul class="list-disc list-inside space-y-1">
                     <li>**Просмотр Видеопотока:** Отображение статических кадров, обновляемых с высокой частотой.</li>
-                    <li>**Оптимальная Частота Обновления:** Интервал обновления установлен на **50 миллисесекунд** (20 кадров/с).</li>
+                    <li>**Оптимальная Частота Обновления:** Интервал установлен на **83 миллисекунды** (≈ 12 кадров/с).</li>
                     <li>**Поддержка USB/ADB:** Возможность подключения через локальный хост (`127.0.0.1`), что обеспечивает более стабильный поток, чем Wi-Fi.</li>
                 </ul>
             </div>
 
-            <!-- 1.3 Настройка и Запуск -->
+            <!-- 1.3 Настройка и Запуск (Обновлено) -->
             <div>
                 <h3 class="text-xl font-semibold text-indigo-300 mb-2">Настройка и Запуск</h3>
+                 <p class="text-sm text-red-400 font-semibold mb-3">
+                    ⚠ Требуется стабильная скорость сети **~10 МБ/с** для плавного потока 12 FPS.
+                </p>
                 <p class="mb-2">Используемое приложение: <a href="https://play.google.com/store/apps/details/IP_Webcam?id=com.pas.webcam&hl=uk" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">IP Webcam (Google Play)</a></p>
                 
                 <h4 class="text-lg font-medium text-gray-200 mt-3">A. Подключение по USB (Рекомендуется)</h4>
@@ -121,14 +124,28 @@
             </ol>
         </div>
 
-        <!-- Управление потоком -->
+        <!-- Управление потоком (Обновлено: добавлена история и предупреждение) -->
         <div class="bg-gray-800 p-6 rounded-xl shadow-lg space-y-4">
+            <!-- Предустановки (История) -->
+            <label for="connectionPreset" class="block text-sm font-medium text-gray-300">Быстрый выбор подключения:</label>
+            <select id="connectionPreset" onchange="loadPreset()"
+                    class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white">
+                <option value="">-- Выбрать из истории или ввести вручную --</option>
+                <!-- Опции будут добавлены через JS -->
+            </select>
+            
             <div class="flex flex-col sm:flex-row gap-4">
                 <input type="text" id="ipAddress" placeholder="IP-адрес (Wi-Fi: 192.168.x.x или USB: 127.0.0.1)"
                        class="flex-1 p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white">
                 <input type="number" id="port" placeholder="Порт (например, 8080)" value="8080"
                        class="w-full sm:w-32 p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white">
             </div>
+
+            <!-- Предупреждение о скорости сети -->
+            <p class="text-sm text-red-400 font-semibold mt-2 text-center">
+                ⚠ Требуется стабильная скорость сети **~10 МБ/с** для плавного потока 12 FPS.
+            </p>
+
             <div class="flex flex-col sm:flex-row gap-4">
                 <button id="startButton" onclick="startStream()"
                         class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 shadow-md shadow-indigo-500/50">
@@ -204,8 +221,48 @@
         const stopButton = document.getElementById('stopButton');
         const statusDiv = document.getElementById('status');
         const readmeMenu = document.getElementById('readmeMenu');
+        const connectionPresetSelect = document.getElementById('connectionPreset'); // Новый элемент
         const placeholderUrl = "https://placehold.co/800x450/1f2937/a5b4fc?text=Ожидание+подключения";
 
+        // --- История подключений (Предустановки) ---
+        const CONNECTION_PRESETS = [
+            { name: "USB/ADB (Локальный Хост)", ip: "127.0.0.1", port: "8080" },
+            { name: "Wi-Fi (Частый IP #1)", ip: "192.168.1.100", port: "8080" },
+            { name: "Wi-Fi (Частый IP #2)", ip: "192.168.0.5", port: "8081" }
+        ];
+
+        /**
+         * Заполняет выпадающий список предустановок.
+         */
+        function populatePresets() {
+            CONNECTION_PRESETS.forEach((preset, index) => {
+                const option = document.createElement('option');
+                // Value is index+1 to avoid conflict with the empty default option
+                option.value = index + 1; 
+                option.textContent = preset.name + ` (${preset.ip}:${preset.port})`;
+                connectionPresetSelect.appendChild(option);
+            });
+        }
+
+        /**
+         * Загружает выбранную предустановку в поля ввода.
+         */
+        function loadPreset() {
+            const selectedIndex = connectionPresetSelect.value;
+            if (selectedIndex) {
+                const preset = CONNECTION_PRESETS[parseInt(selectedIndex) - 1];
+                ipAddressInput.value = preset.ip;
+                portInput.value = preset.port;
+                statusDiv.textContent = `Загружено: ${preset.name}. Нажмите "Начать просмотр".`;
+                statusDiv.classList.remove('text-red-400', 'text-green-400');
+                statusDiv.classList.add('text-yellow-400');
+            } else {
+                // Если выбран пустой элемент, очищаем IP, оставляем порт по умолчанию
+                ipAddressInput.value = "";
+                portInput.value = "8080";
+            }
+        }
+        
         /**
          * Переключает видимость анимированного меню README.
          * @param {boolean} show - true, чтобы показать; false, чтобы скрыть.
@@ -266,8 +323,9 @@
                 clearInterval(intervalId);
             }
 
-            // Установка частоты обновления. 50 мс = 20 кадров/сек.
-            intervalId = setInterval(updateStream, 50); 
+            // Установка частоты обновления: 83 мс ≈ 12 кадров/сек. (ОБНОВЛЕНО!)
+            const updateInterval = 83; 
+            intervalId = setInterval(updateStream, updateInterval); 
 
             startButton.disabled = true;
             startButton.classList.add('opacity-50', 'cursor-not-allowed');
@@ -275,6 +333,7 @@
             stopButton.classList.remove('opacity-50', 'cursor-not-allowed');
             ipAddressInput.disabled = true;
             portInput.disabled = true;
+            connectionPresetSelect.disabled = true;
             
             // Первый вызов сразу после старта
             updateStream();
@@ -294,6 +353,7 @@
             stopButton.classList.add('opacity-50', 'cursor-not-allowed');
             ipAddressInput.disabled = false;
             portInput.disabled = false;
+            connectionPresetSelect.disabled = false;
 
             statusDiv.textContent = "Просмотр остановлен.";
             statusDiv.classList.remove('text-green-400', 'text-red-400');
@@ -303,6 +363,9 @@
 
         // Устанавливаем обработчик ошибки для постоянного плейсхолдера
         streamImage.onerror = handleImageError;
+        
+        // Запускаем заполнение списка предустановок при загрузке
+        document.addEventListener('DOMContentLoaded', populatePresets);
 
     </script>
 </body>
