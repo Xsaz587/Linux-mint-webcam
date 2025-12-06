@@ -15,34 +15,109 @@
             overflow: hidden;
             background-color: #1f2937;
         }
+        /* Стиль для маркированного списка внутри инструкций */
+        .list-circle {
+            list-style-type: circle;
+        }
+
+        /* --- Custom CSS for Animated Menu --- */
+        /* Базовое состояние - скрыто и сдвинуто вправо */
+        #readmeMenu {
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out, visibility 0.3s;
+            visibility: hidden;
+            z-index: 50; /* Над всем остальным контентом */
+        }
+        /* Активное состояние - видимо и в исходной позиции */
+        #readmeMenu.active {
+            transform: translateX(0);
+            visibility: visible;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen p-4 sm:p-8 font-sans flex flex-col items-center">
 
-    <!-- Скрытый Canvas для захвата кадра (оставлен, но не используется) -->
+    <!-- 1. АНИМИРОВАННОЕ МЕНЮ (README / ИНФОРМАЦИЯ) -->
+    <div id="readmeMenu" class="fixed top-0 right-0 w-full md:w-1/2 lg:w-1/3 h-full bg-gray-950 border-l border-indigo-500 shadow-2xl overflow-y-auto p-6">
+        <div class="flex justify-between items-center mb-6 border-b pb-4 border-gray-700">
+            <h2 class="text-3xl font-bold text-indigo-400">📝 Информация о Проекте</h2>
+            <button onclick="toggleReadmeMenu(false)" 
+                    class="text-gray-400 hover:text-white transition duration-200 text-3xl font-light leading-none">
+                &times;
+            </button>
+        </div>
+
+        <div class="space-y-6 text-gray-300">
+            <!-- 1.1 Обзор Проекта -->
+            <div>
+                <h3 class="text-xl font-semibold text-indigo-300 mb-2">Обзор</h3>
+                <p>Этот проект представляет собой простое веб-приложение на чистом HTML, CSS (Tailwind) и JavaScript, предназначенное для просмотра видеопотока с Android-телефона (например, Honor), на котором запущено приложение IP-веб-камеры. Это идеальное решение для использования старого телефона в качестве домашней камеры наблюдения или монитора.</p>
+            </div>
+
+            <!-- 1.2 Ключевые Функции -->
+            <div>
+                <h3 class="text-xl font-semibold text-indigo-300 mb-2">Ключевые Функции</h3>
+                <ul class="list-disc list-inside space-y-1">
+                    <li>**Просмотр Видеопотока:** Отображение статических кадров, обновляемых с высокой частотой.</li>
+                    <li>**Оптимальная Частота Обновления:** Интервал обновления установлен на **50 миллисесекунд** (20 кадров/с).</li>
+                    <li>**Поддержка USB/ADB:** Возможность подключения через локальный хост (`127.0.0.1`), что обеспечивает более стабильный поток, чем Wi-Fi.</li>
+                </ul>
+            </div>
+
+            <!-- 1.3 Настройка и Запуск -->
+            <div>
+                <h3 class="text-xl font-semibold text-indigo-300 mb-2">Настройка и Запуск</h3>
+                <p class="mb-2">Используемое приложение: <a href="https://play.google.com/store/apps/details/IP_Webcam?id=com.pas.webcam&hl=uk" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">IP Webcam (Google Play)</a></p>
+                
+                <h4 class="text-lg font-medium text-gray-200 mt-3">A. Подключение по USB (Рекомендуется)</h4>
+                <ol class="list-decimal list-inside ml-4 space-y-1">
+                    <li>Включите режим **USB-отладки** на телефоне.</li>
+                    <li>Подключите телефон к ПК по USB-кабелю.</li>
+                    <li>В терминале Linux Mint выполните: 
+                        <code class="bg-gray-800 text-sm p-1 rounded text-yellow-300 block my-1">adb forward tcp:8080 tcp:8080</code></li>
+                    <li>В поля ввода на сайте укажите: **IP: `127.0.0.1`** и **Порт: `8080`**.</li>
+                </ol>
+                
+                <h4 class="text-lg font-medium text-gray-200 mt-3">B. Подключение по Wi-Fi</h4>
+                <ol class="list-decimal list-inside ml-4 space-y-1">
+                    <li>Запустите сервер в приложении IP Webcam.</li>
+                    <li>В поля ввода на сайте укажите IP-адрес и порт, которые показало приложение (например, `192.168.1.10` и `8080`).</li>
+                </ol>
+            </div>
+            
+             <!-- 1.4 Копирайт -->
+            <div class="pt-4 mt-6 border-t border-gray-800">
+                <p class="text-center text-gray-500 text-sm">Разработано: Студия Цифрового Кода (Digital Code Studio)</p>
+                <p class="text-center text-gray-500 text-sm">Все права защищены 2025© XSAZ</p>
+            </div>
+        </div>
+    </div>
+    <!-- КОНЕЦ МЕНЮ -->
+
+    <!-- Скрытый Canvas для захвата кадра (не используется) -->
     <canvas id="captureCanvas" style="display: none;"></canvas>
 
     <div class="w-full max-w-4xl space-y-8">
-        <header class="text-center">
+        <header class="text-center relative">
             <h1 class="text-4xl font-extrabold text-indigo-400">Сетевой Видеопоток с Honor</h1>
             <p class="text-gray-400 mt-2">Используйте телефон как IP-камеру. Просмотр ведется прямо на Linux Mint.</p>
+             <button onclick="toggleReadmeMenu(true)" 
+                    class="absolute right-0 top-0 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-semibold py-2 px-4 rounded-lg transition duration-200 shadow-md hidden sm:block">
+                Информация / README
+            </button>
+             <button onclick="toggleReadmeMenu(true)" 
+                    class="sm:hidden w-full bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-semibold py-2 px-4 rounded-lg transition duration-200 shadow-md mt-4">
+                Информация / README
+            </button>
         </header>
 
-        <!-- Блок инструкций для IP Webcam (Обновлен для USB) -->
+        <!-- Блок инструкций (Оставлен на месте для быстрого доступа) -->
         <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
-            <h2 class="text-xl font-semibold mb-3 text-indigo-300">Инструкции по настройке Honor:</h2>
+            <h2 class="text-xl font-semibold mb-3 text-indigo-300">Краткие Инструкции:</h2>
             <ol class="list-decimal list-inside space-y-2 text-gray-300 ml-4">
-                <li>Установите приложение **"IP Webcam"** (или аналогичное) из Google Play на Honor.</li>
-                <li>Запустите приложение и нажмите **"Start Server"** (Запустить сервер).</li>
-                <li>**Для подключения через Wi-Fi:** Введите IP-адрес, который покажет приложение, и порт (например, `192.168.1.10` и `8080`).</li>
-                <li>**Для подключения через USB (рекомендуется):**
-                    <ul class="list-disc list-inside ml-4 mt-1">
-                        <li>Включите режим USB-отладки на телефоне.</li>
-                        <li>Подключите телефон к Linux Mint по USB.</li>
-                        <li>В терминале выполните команду: `adb forward tcp:8080 tcp:8080`</li>
-                        <li>В поля ниже введите: **IP-адрес: `127.0.0.1` (localhost)** и **Порт: `8080`**.</li>
-                    </ul>
-                </li>
+                <li>Запустите **IP Webcam** на Honor и нажмите "Start server".</li>
+                <li>**Для USB (лучше):** Выполните `adb forward tcp:8080 tcp:8080` и используйте IP: `127.0.0.1`.</li>
+                <li>**Для Wi-Fi:** Используйте IP-адрес, который показал телефон.</li>
             </ol>
         </div>
 
@@ -77,8 +152,11 @@
                  onerror="handleImageError()">
         </div>
         
-        <footer class="text-center text-gray-500 text-xs mt-6">
-            Для работы приложения требуется, чтобы на телефоне Honor был запущен сервер IP-веб-камеры.
+        <!-- Обновленный футер с копирайтом и студией -->
+        <footer class="text-center text-gray-500 text-xs mt-6 space-y-1">
+            <p>Для работы приложения требуется, чтобы на телефоне Honor был запущен сервер IP-веб-камеры.</p>
+            <p>Разработано: Студия Цифрового Кода (Digital Code Studio)</p>
+            <p>Все права защищены 2025© XSAZ</p>
         </footer>
     </div>
 
@@ -125,8 +203,21 @@
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
         const statusDiv = document.getElementById('status');
+        const readmeMenu = document.getElementById('readmeMenu');
         const placeholderUrl = "https://placehold.co/800x450/1f2937/a5b4fc?text=Ожидание+подключения";
 
+        /**
+         * Переключает видимость анимированного меню README.
+         * @param {boolean} show - true, чтобы показать; false, чтобы скрыть.
+         */
+        function toggleReadmeMenu(show) {
+            if (show) {
+                readmeMenu.classList.add('active');
+            } else {
+                readmeMenu.classList.remove('active');
+            }
+        }
+        
         /**
          * Обновляет изображение с потока камеры.
          */
@@ -176,7 +267,6 @@
             }
 
             // Установка частоты обновления. 50 мс = 20 кадров/сек.
-            // Это хороший баланс между плавностью и стабильностью.
             intervalId = setInterval(updateStream, 50); 
 
             startButton.disabled = true;
